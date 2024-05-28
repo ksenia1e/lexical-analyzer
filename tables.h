@@ -8,37 +8,144 @@
 #include <fstream>
 using namespace std;
 
-class staticTable 
+class staticTable
 {
 public:
    vector <string> simbols;
 
-   string getByKey(int key);
+   string getByKey(int key)
+   {
+      if (key >= 0 && key < simbols.size())
+         return simbols[key];
 
-   void getTable();
+      return "err";
+   }
 
-   void createTable();
+   void getTable()
+   {
+      for (int i = 0; i < simbols.size(); i++)
+      {
+         cout << simbols[i] << endl;
+      }
+   }
 
-   void printTable();
+   void createTable()
+   {
+      simbols.resize(18);
+
+      // type
+      simbols[0] = ("int");
+
+      // operations
+      simbols[1] = ("+");
+      simbols[2] = ("-");
+      simbols[3] = ("*");
+
+      // operations comparasion
+      simbols[4] = ("<");    
+      simbols[5] = ("!=");   
+      simbols[6] = ("==");
+
+      // =
+      simbols[7] = ("=");
+
+      // signs
+      simbols[8] = ("(");
+      simbols[9] = (")");
+      simbols[10] = ("{");
+      simbols[11] = ("}");
+
+      // operators
+      simbols[12] = ("if");
+      simbols[13] = ("else");
+      simbols[14] = ("main");
+
+      simbols[15] = ("/");
+      simbols[16] = (";");
+      simbols[17] = ("return");
+   }
+
+   void printTable()
+   {
+      ofstream out;
+      out.open("staticTable.txt");
+
+      if (out.is_open())
+      {
+         for (int i = 0; i < simbols.size(); i++)
+         {
+            out << i << ": " << simbols[i] << endl;
+         }
+      }
+      else {
+         cout << "Ошибка открытия файла" << endl;
+      }
+      out.close();
+   }
 };
 
 template <class Type>
-class dynamicTable 
+class dynamicTable
 {
 public:
    vector <Type> data;
 
-   Type getByKey(int key);
+   Type getByKey(int key)
+   {
+      if (key >= 0 && key < data.size())
+         return data[key];
 
-   void add(Type value);
+      return "err";
+   }
 
-   void removeByValue(Type value);
+   void add(Type value)
+   {
+      data.push_back(value);
+   }
 
-   bool checkValue(Type value);
+   void removeByValue(Type value)
+   {
+      for (size_t i = 0; i < data.size(); ++i)
+      {
+         if (data[i] == value)
+         {
+            data.erase(data.begin() + i);
+            break;
+         }
+      }
+   }
 
-   void getTable();
+   bool checkValue(Type value)
+   {
+      auto p = find(data.begin(), data.end(), value);
+      return p == end(data) ? false : true;
+   }
 
-   void printTable();
+   void getTable()
+   {
+      for (int i = 0; i < data.size(); i++)
+      {
+         cout << data[i] << endl;
+      }
+   }
+
+   void printTable(string &s)
+   {
+      ofstream out;
+      out.open(s);
+
+      if (out.is_open())
+      {
+         for (int i = 0; i < data.size(); i++)
+         {
+            out << i << ": " << data[i] << endl;
+         }
+      }
+      else {
+         cout << "Ошибка открытия файла" << endl;
+      }
+      out.close();
+   }
 };
 
 struct err

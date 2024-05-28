@@ -10,7 +10,10 @@ int GetType(char &symbol)
         return 2;
     if (symbol == '/')
         return 3;
-
+    if (symbol == ';')
+       return 4;
+    if (symbol == '{' || symbol == '}' || symbol == '(' || symbol == ')')
+       return 5;
     return -1;
 }
 
@@ -31,7 +34,7 @@ void PrintTokens(vector<pair<int, int>> &tokens)
 {
     ofstream out("tokens.txt");
     for (int i = 0; i < tokens.size(); i++)
-        out << tokens[i].first << tokens[i].second << endl;
+        out << "(" << tokens[i].first << ", " << tokens[i].second << ")" << endl;
     out.close();
 }
 
@@ -42,7 +45,7 @@ void PrintErrors(vector <err> errors)
     {
         out << "Код ошибки: " << errors[i].number_er << endl;
         out << "Номер строки: " << errors[i].number_str << endl;
-        out << errors[i].comment << endl;
+        out << errors[i].comment << errors[i].word << endl;
         out << "--------------------" << endl;
     }
 }
@@ -51,294 +54,370 @@ void CreateTokens(vector<pair<int, int>> &tokens)
 {
     ReadWords();
     
-    vector<string> words;
+    vector<char> word;
     st.createTable();
-
-    bool findendComment = false;
-
+    int zs{0};
+    // 0 - таблица констант, 1 - таблица переменных, 2 - таблица зарезервированных символов
     for (int i = 0; i < strings.size(); i++)
     {
-        words.clear();
-        char* token = strtok(strings[i].data(), " ");
-        
-        while(token != nullptr)
+       int x{ 0 }, q{ 0 };
+       bool flag1{ 0 };
+        for (int c = 0; c < strings[i].size(); c++)
         {
-            words.push_back(token);
-            token = strtok(nullptr, " ");
-        }
-
-        bool newstr = false;
-        // Идем по словам в строке
-        for (auto word: words)
-        {
-            
-            if (newstr)
-            {
-                break;
-            }
-            
-            char x = word[0];
-            
-            // Если конец двустрочного комментария еще не найден
-            if (findendComment)
-            {
-                x = 3;
-            }
-
-            switch (GetType(x))
-            {
-                // const
-                case (0):
-                {
-                    bool flag = 0;
-                    for (char symb: word)
+           if (flag1 == 1)
+              break;
+           bool flag{ 0 };
+           char a = strings[i][c];
+           if (a != ' ' && a != '\t')
+              word.push_back(a);
+           if (strings[i][c+1] == ' ' || c == strings[i].size() - 1)
+           {
+              c++;
+              int type = GetType(word[0]);
+              int size, size1, size2, size3, j, p1=0, p2=0;
+              switch (type)
+              {
+              case(0):
+                 for (j = 1; j < word.size(); j++)
+                 {
+                    int t_next = GetType(word[j]);
+                    if (t_next != 0)
                     {
-                        if (symb < '0' || symb > '9')
-                        {
-                            err e;
-                            e.number_er = 0, e.number_str = i + 1, 
-                            e.word = word, e.comment = "Недопустимый cимвол " + symb;
-                            errors.push_back(e);
-                            flag = 1;
-                            break;
-                        }
+                       err e;
+                       e.number_er = 0, e.number_str = i + 1,
+                          e.word = word[j], e.comment = "Недопустимый cимвол ";
+                       errors.push_back(e);
+                       word.clear();
+                       break;
                     }
+                 }
 
-                    // Если ошибок не было, создаем токен
-                    if (!flag)
+                 for (j = 0, q = word.size() - 1; j < word.size(); j++, q--)
+                    x += (word[q] - '0') * pow(10, j);
+                 constTable.add(x);
+                 tokens.push_back(make_pair(0, constTable.data.size() - 1));
+                 word.clear();
+                 break;
+
+              case(1):
+                 size = word.size();
+                 switch (size)
+                 {
+                 case(1):
+                    for (j = 1; j < 5; j++)
                     {
-                        constTable.add(stoi(word));
-                        auto p = make_pair(2, constTable.data.size());
-                        tokens.push_back(p);
+                       if (st.simbols[j][0] == word[0])
+                       {
+                          zs = j;
+                          tokens.push_back(make_pair(2, zs));
+                          break;
+                       }
                     }
-
-                    break;
-                }
-                    
-
-                // specific symbols
-                case (1):
-                {
-                    int k = 1;
-                    bool flag = false;
-
-                    for (; k < 5; k++)
+                    if (st.simbols[7][0] == word[0])
                     {
-                        if (word[0] == st.simbols[k][0])
-                        {
-                            if (word.size() > 1)
-                            {
-                                flag = true;
-                                err e;
-                                e.number_er = 1, e.number_str = i, 
-                                e.word = word, e.comment = "Недопустимый символ " + word[1];
-                                errors.push_back(e);
-                                break;
-                            }
-                            break;
-                        }
-                    }
-
-                    if (word[0] = st.simbols[5][0])
-                    {
-                        k = 5;
-                        if (word.size() > 1)
-                        {
-                            if (word[1] != st.simbols[5][1])
-                            {
-                                flag = true;
-                                err e;
-                                e.number_er = 1, e.number_str = i, 
-                                e.word = word, e.comment = "Недопустимый символ " + word[1];
-                                errors.push_back(e);
-                                break;
-                            }
-                            
-                            if (word.size() > 2)
-                            {
-                                flag = true;
-                                err e;
-                                e.number_er = 1, e.number_str = i, 
-                                e.word = word, e.comment = "Лишний символ " + word[2];
-                                errors.push_back(e);
-                                break;
-                            }
-                        }
-                        else 
-                        {
-                            flag = true;
-                            err e;
-                            e.number_er = 1, e.number_str = i, 
-                            e.word = word, e.comment = "Отсутсвует символ =";
-                            errors.push_back(e);
-                            break;
-                        }
-                    }
-
-                    if (word[0] == st.simbols[6][0])
-                    {
-                        k = 7;
-                        if (word.size() > 1)
-                        {
-                            k = 6;
-                            if (word[1] != st.simbols[6][1])
-                            {
-                                flag = true;
-                                err e;
-                                e.number_er = 1, e.number_str = i, 
-                                e.word = word, e.comment = "Недопустимый символ " + word[1];
-                                errors.push_back(e);
-                                break;
-                            }
-                            
-                            if (word.size() > 2)
-                            {
-                                flag = true;
-                                err e;
-                                e.number_er = 1, e.number_str = i, 
-                                e.word = word, e.comment = "Лишний символ " + word[2];
-                                errors.push_back(e);
-                                break;
-                            }
-                        }
-                    }
-
-                    // Если ошибок не было, создаем токен
-                    if (!flag)
-                    {
-                        auto p = make_pair(0, k);
-                        tokens.push_back(p);
+                       zs = 7;
+                       tokens.push_back(make_pair(2, zs));
                     }
                     break;
-                }
-                
-                // identifier
-                case (2):
-                {
-                    bool flag = 0;
-                    
-                    for (auto symb: word)
-                    {
-                        if (!(symb == '_' || (symb >= '0' && symb <= '9') || 
-                        (symb >= 'a' && symb <= 'z') || (symb >= 'A' && symb <= 'Z')))
-                        {
-                            flag = 1;
-                            err e;
-                            e.number_er = 2, e.number_str = i, 
-                            e.word = word, e.comment = "Недопустимый символ " + symb;
-                            errors.push_back(e);
-                            break;
-                        }
-                    }
-                    
-                    if (!flag)
-                    {
-                        bool is_static = 0;
-                        for(int k = 0; k < st.simbols.size(); k++)
-                        {
-                            if (word == st.simbols[i])
-                                is_static = 1;
-                        }
 
-                        // Если слово зарезервированно
-                        if (is_static)
-                        {
-                            auto p = make_pair(0, i);
-                            tokens.push_back(p);
-                        }
-                        else
-                        {
-                            stringTable.add(word);
-                            auto p = make_pair(1, stringTable.data.size());
-                            tokens.push_back(p);
-                        }
-                        
+                 case(2):
+                    if (st.simbols[5][0] == word[0])
+                    {
+                       if (st.simbols[5][1] == word[1])
+                       {
+                          zs = 5;
+                          tokens.push_back(make_pair(2, zs));
+                       }
+                       else
+                          flag = 1;
                     }
-
+                    if (st.simbols[6][0] == word[0])
+                    {
+                       if (st.simbols[6][1] == word[1])
+                       {
+                          zs = 6;
+                          tokens.push_back(make_pair(2, zs));
+                       }
+                       else
+                          flag = 1;
+                    }
+                    if (flag == 1)
+                    {
+                       err e;
+                       e.number_er = 1, e.number_str = i + 1,
+                          e.word = word[1], e.comment = "Недопустимый cимвол ";
+                       errors.push_back(e);
+                       word.clear();
+                       break;
+                    }
                     break;
-                }
-                    
-                
-                // comment
-                case (3):
-                {
-                    if (!findendComment)
-                    {
-                        for(auto elem : word)
-                        {
-                            if (elem == '*')
-                            {
-                                findendComment = false;
-                                
-                                break;
-                            }
-                        }
-                    }
 
-                    // Если мы не в двустрочном комментарии
-                    if (!findendComment)
-                    {
-                        if (word.size() > 1)
-                        {   
-                            if (word[1] == '/')
-                            {
-                                newstr = true;
-                                break;
-                            }
-                            else if (word[1] == '*')
-                            {
-                                findendComment = true;
-                            }
-                            else 
-                            {
-                                err e;
-                                e.number_er = 3, e.number_str = i, 
-                                e.word = word, e.comment = "Недопустимый символ " + word[1];
-                                errors.push_back(e);
-                                break;
-                            }
-                        }
-                        else
-                        {
-                            err e;
-                            e.number_er = 3, e.number_str = i, 
-                            e.word = word, e.comment = "Отсутсвует символ / или *";
-                            errors.push_back(e);
-                            break;
-                        }
-                    }
-                    
-                    // Если конец двустрочного комментария еще не найден
-                    if (findendComment)
-                    {
-                        // Если "*/" не найдено
-                        if(strings[i].find("*/") == string::npos)
-                        {
-                            newstr = true;
-                            break;
-                        }
-
-                        findendComment = false;
-                        break;
-                    }
-                }
-                
-                // error
-                case (-1):
-                {
+                 default:
                     err e;
-                    e.number_er = -1, e.number_str = i, 
-                    e.word = word, e.comment = "Недопустимый символ " + x;
+                    e.number_er = 1, e.number_str = i + 1,
+                       e.word = word[2], e.comment = "Недопустимый cимвол ";
                     errors.push_back(e);
+                    word.clear();
                     break;
-                }
-            }
+                 }
+                 word.clear();
+                 break;
+              
+              case(2):
+                 size2 = word.size();
+                 switch (size2)
+                 {
+                 case(2):
+                    if (st.simbols[12][1] == word[1])
+                    {
+                       zs = 12;
+                       tokens.push_back(make_pair(2, zs));
+                       break;
+                    }
+                    else if (GetType(word[1]) == 2)
+                    {
+                       tokens.push_back(make_pair(1, stringTable.data.size() - 1));
+                       string s (word.begin(), word.end());
+                       stringTable.add(s);
+                       break;
+                    }
+                    for (j = 1; j < word.size(); j++)
+                    {
+                       int t_next = GetType(word[j]);
+                       if (t_next != 2)
+                       {
+                          err e;
+                          e.number_er = 2, e.number_str = i + 1,
+                             e.word = word[j], e.comment = "Недопустимый cимвол ";
+                          errors.push_back(e);
+                          word.clear();
+                          break;
+                       }
+                    }
+
+                 case(3):
+                    for (j = 0; j < 3; j++)
+                    {
+                       if (st.simbols[0][j] != word[j])
+                          flag = 1;
+                    }
+                    if (flag == 1)
+                    {
+                       for (j = 1; j < word.size(); j++)
+                       {
+                          int t_next = GetType(word[j]);
+                          if (t_next != 2)
+                          {
+                             err e;
+                             e.number_er = 2, e.number_str = i + 1,
+                                e.word = word[j], e.comment = "Недопустимый cимвол ";
+                             errors.push_back(e);
+                             word.clear();
+                             flag = 0;
+                             break;
+                          }
+                       }
+                       if (flag != 0)
+                       {
+                          string s(word.begin(), word.end());
+                          stringTable.add(s);
+                          tokens.push_back(make_pair(1, stringTable.data.size() - 1));
+                          break;
+                       }
+                    }
+                    tokens.push_back(make_pair(2, 0));
+                    break;
+
+                 case(4):
+                    
+                    for (j = 0, p1 = 13, p2 = 14; j < 4; j++)
+                    {
+                       if (st.simbols[13][j] != word[j])
+                       {
+                          p1 = 0;
+                          break;
+                       }
+                       if (st.simbols[14][j] != word[j])
+                       {
+                          p2 = 0;
+                          break;
+                       }
+                    }
+                    if (p1 == 0 && p2 == 0)
+                    {
+                       for (j = 1; j < word.size(); j++)
+                       {
+                          int t_next = GetType(word[j]);
+                          if (t_next != 2)
+                          {
+                             err e;
+                             e.number_er = 2, e.number_str = i + 1,
+                                e.word = word[j], e.comment = "Недопустимый cимвол ";
+                             errors.push_back(e);
+                             word.clear();
+                             flag = 0;
+                             break;
+                          }
+                       }
+                       if (flag != 0)
+                       {
+                          string s(word.begin(), word.end());
+                          stringTable.add(s);
+                          tokens.push_back(make_pair(1, stringTable.data.size() - 1));
+                          break;
+                       }
+                    }
+                    if (p1 != 0)
+                    {
+                       tokens.push_back(make_pair(2, p1));
+                       break;
+                    }
+                    if (p2 != 0)
+                    {
+                       tokens.push_back(make_pair(2, p2));
+                       break;
+                    }
+                    break;
+
+                 case(6):
+                    for (j = 0; j < 6; j++)
+                    {
+                       if (st.simbols[17][j] != word[j])
+                          flag = 1;
+                    }
+                    if (flag == 1)
+                    {
+                       for (j = 1; j < word.size(); j++)
+                       {
+                          int t_next = GetType(word[j]);
+                          if (t_next != 2)
+                          {
+                             err e;
+                             e.number_er = 2, e.number_str = i + 1,
+                                e.word = word[j], e.comment = "Недопустимый cимвол ";
+                             errors.push_back(e);
+                             word.clear();
+                             flag = 0;
+                             break;
+                          }
+                       }
+                       if (flag != 0)
+                       {
+                          string s(word.begin(), word.end());
+                          stringTable.add(s);
+                          tokens.push_back(make_pair(1, stringTable.data.size() - 1));
+                          break;
+                       }
+                    }
+                    tokens.push_back(make_pair(2, 17));
+                    break;
+
+                 default:
+                    for (j = 1; j < word.size(); j++)
+                    {
+                       int t_next = GetType(word[j]);
+                       if (t_next != 2)
+                       {
+                          err e;
+                          e.number_er = 2, e.number_str = i + 1,
+                             e.word = word[j], e.comment = "Недопустимый cимвол ";
+                          errors.push_back(e);
+                          word.clear();
+                          break;
+                       }
+                    }
+                    string s(word.begin(), word.end());
+                    stringTable.add(s);
+                    tokens.push_back(make_pair(1, stringTable.data.size() - 1));
+                    break;
+                 }
+                 word.clear();
+                 break;
+
+              case(3):
+                 size3 = word.size();
+                 switch (size3)
+                 {
+                 case(2):
+                    if (st.simbols[15][0]==word[1])
+                    {
+                       flag1 = 1;
+                       //tokens.push_back(make_pair(2, 15));
+                       break;
+                    }
+                    else
+                    {
+                       err e;
+                       e.number_er = 3, e.number_str = i + 1,
+                          e.word = word[1], e.comment = "Недопустимый cимвол, ожидался '/' вместо ";
+                       errors.push_back(e);
+                       word.clear();
+                       break;
+                    }
+
+                 default:
+                    err e;
+                    e.number_er = 3, e.number_str = i + 1,
+                       e.word = word[0], e.comment = "Недопустимый cимвол, ожидалось '//' вместо ";
+                    errors.push_back(e);
+                    word.clear();
+                    break;
+                 }
+                 word.clear();
+                 break;
+
+              case(4):
+                 if (word.size() > 1)
+                 {
+                    err e;
+                    e.number_er = 4, e.number_str = i + 1,
+                       e.word = word[1], e.comment = "Недопустимый cимвол ";
+                    errors.push_back(e);
+                    word.clear();
+                    break;
+                 }
+                 tokens.push_back(make_pair(2, 16));
+                 word.clear();
+                 break;
+
+              case(5):
+                 if (word.size() > 1)
+                 {
+                    err e;
+                    e.number_er = 5, e.number_str = i + 1,
+                       e.word = word[1], e.comment = "Недопустимый cимвол ";
+                    errors.push_back(e);
+                    word.clear();
+                    break;
+                 }
+                 for (j = 8; j < 12; j++)
+                 {
+                    if (st.simbols[j][0] == word[0])
+                    {
+                       zs = j;
+                       break;
+                    }
+                 }
+                 tokens.push_back(make_pair(2, zs));
+                 word.clear();
+                 break;
+
+              default:
+                 err e;
+                 e.number_er = -1, e.number_str = i + 1,
+                    e.word = word[0], e.comment = "Неизвестный cимвол ";
+                 errors.push_back(e);
+                 word.clear();
+              }
+           }
         }
     }
 
     st.printTable();
-    constTable.printTable();
-    stringTable.printTable();
+    string s1 = { "constTable.txt" };
+    constTable.printTable(s1);
+    string s2 = { "dynamicTable.txt" };
+    stringTable.printTable(s2);
     PrintTokens(tokens);
     PrintErrors(errors);
 }
